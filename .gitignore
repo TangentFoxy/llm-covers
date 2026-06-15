@@ -5,3 +5,5 @@ intermediates/**
 !intermediates/.gitkeep
 cover_briefs/**
 !cover_briefs/.gitkeep
+for_gemini/**
+!for_gemini/.gitkeep

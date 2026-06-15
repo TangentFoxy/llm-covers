@@ -1,3 +1,3 @@
 
-- [ ] Rename cover to process
-- [ ] Remove code that saves intermediates (comment it out)
+- [x] Rename cover to process
+- [x] Remove code that saves intermediates (comment it out)

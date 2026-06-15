@@ -4,7 +4,7 @@ package.path = (arg[0]:match("@?(.*/)") or arg[0]:match("@?(.*\\)")) .. "lib" ..
 local utility = require "utility"
 
 local default_model = "gemma4:12b-mlx"
-local maximum_bytes = 50000
+local maximum_bytes = 40000
 
 local partial_prompt = [[You are extracting information for a later cover design process.
 
@@ -75,7 +75,8 @@ Avoid minor plot events.
 ]]
 
 local gemini_prompt = [[
-Generate an ebook cover inset within an empty white border 10% larger than the cover using the following cover brief:
+
+Generate a flate image of an ebook cover inset within an empty white border 10% larger than the cover using the following cover brief:
 
 ]]
 
@@ -134,6 +135,7 @@ local send_prompt = function(text, model)
   local start_time = os.time()
   -- word wrap breaks the raw output badly, so I need to implement my own for terminal output somehow
   local output = utility.capture_safe("cat " .. tmp_file_name:enquote() .. " | ollama run " .. (model or default_model) .. " --nowordwrap")
+  os.execute("ollama stop " .. (model or default_model)) -- NOTE this makes things slower, but more stable
   local delta = math.floor( (os.time() - start_time) / 60 * 10 ) / 10
   print("Took " .. delta .. " minutes.")
   timings[#timings + 1] = delta
@@ -149,7 +151,12 @@ end
 local tree
 tree = function(path, fn)
   utility.list(path or ".", function(path_name)
-    local blacklist = { ".git", ".gitkeep", ".DS_Store", }
+    local blacklist = {
+      [".git"] = true,
+      [".gitkeep"] = true,
+      [".gitignore"] = true,
+      [".DS_Store"] = true,
+    }
     if blacklist[path_name] then return end
     if utility.is_file(path_name) then
       fn(path_name)
@@ -161,10 +168,12 @@ end
 
 tree("extracted_texts", function(file_name)
   local path, name, extension = utility.split_path_components(file_name)
+  if utility.path_exists("cover_briefs/" .. name) then return end
+
   local text = read_all(file_name)
   local result
-  print(name)
 
+  print(name)
   if #text > maximum_bytes then
     local outputs = {}
     -- TODO check if this would work just as well starting from 1 instead..
@@ -178,13 +187,13 @@ tree("extracted_texts", function(file_name)
 
     text = table.concat(outputs, "\n\n")
     -- TODO handle if there is too much context!
-    write_all("intermediates/" .. name .. ".txt", text)
+    write_all("intermediates/" .. name, text)
   end
 
   print("Generating cover brief.")
   result = send_prompt(cover_brief_prompt .. text)
-  write_all("cover_briefs/" .. name .. ".txt", result)
-  write_all("cover_briefs/for_gemini" .. name .. ".txt", name .. gemini_prompt .. result)
+  write_all("cover_briefs/" .. name, result)
+  write_all("for_gemini/" .. name, name:sub(1, -5) .. gemini_prompt .. result)
 end)
 
 timing_report()
