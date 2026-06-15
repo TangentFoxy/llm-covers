@@ -1,6 +1,5 @@
-
 ## Usage
-1. Use a tool like [audiobook-creator]() to extract the text of an audiobook.
+1. Use a tool like [audiobook-creator](https://github.com/prakharsr/audiobook-creator) to extract the text of an audiobook.
 2. Place it in `extracted_texts/TITLE by AUTHOR.txt`.
 3. Run `make_cover_briefs.lua`. (Relies on Ollama and `gemma4:12b-mlx` and requires at least a Mac mini M4 base model.)
 4. Cover briefs will be placed in `cover_briefs`.
