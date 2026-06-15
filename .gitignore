@@ -1,0 +1,7 @@
+.DS_Store
+extracted_texts/**
+!extracted_texts/.gitkeep
+intermediates/**
+!intermediates/.gitkeep
+cover_briefs/**
+!cover_briefs/.gitkeep
