@@ -2,10 +2,9 @@
 
 package.path = (arg[0]:match("@?(.*/)") or arg[0]:match("@?(.*\\)")) .. "lib" .. package.config:sub(1, 1) .. "?.lua;" .. package.path
 local utility = require "utility"
-local json = utility.require("dkjson")
 
 local default_model = "gemma4:12b-mlx"
-local maximum_bytes = 20000
+local maximum_bytes = 50000
 
 local partial_prompt = [[You are extracting information for a later cover design process.
 
@@ -72,13 +71,23 @@ Prefer elements that:
 - best represent the entire story
 
 Avoid minor plot events.
-Avoid spoilers.
+
+]]
+
+local gemini_prompt = [[
+Generate an ebook cover inset within an empty white border 10% larger than the cover using the following cover brief:
 
 ]]
 
 local read_all = function(file_name)
   return utility.open(file_name, "r", function(file)
     return file:read("*all")
+  end)
+end
+local write_all = function(file_name, text)
+  return utility.open(file_name, "w", function(file)
+    file:write(text)
+    file:write("\n")
   end)
 end
 
@@ -126,6 +135,7 @@ local send_prompt = function(text, model)
   -- word wrap breaks the raw output badly, so I need to implement my own for terminal output somehow
   local output = utility.capture_safe("cat " .. tmp_file_name:enquote() .. " | ollama run " .. (model or default_model) .. " --nowordwrap")
   local delta = math.floor( (os.time() - start_time) / 60 * 10 ) / 10
+  print("Took " .. delta .. " minutes.")
   timings[#timings + 1] = delta
   os.execute("rm " .. tmp_file_name)
   if not output then error("ollama failed to generate output") end
@@ -139,8 +149,8 @@ end
 local tree
 tree = function(path, fn)
   utility.list(path or ".", function(path_name)
-    if path_name == ".git" then return end
-    if path_name == ".gitkeep" then return end
+    local blacklist = { ".git", ".gitkeep", ".DS_Store", }
+    if blacklist[path_name] then return end
     if utility.is_file(path_name) then
       fn(path_name)
     else
@@ -153,29 +163,28 @@ tree("extracted_texts", function(file_name)
   local path, name, extension = utility.split_path_components(file_name)
   local text = read_all(file_name)
   local result
+  print(name)
 
   if #text > maximum_bytes then
     local outputs = {}
     -- TODO check if this would work just as well starting from 1 instead..
     for i = 0, #text/maximum_bytes do
-      print((i + 1) .. " of " .. math.floor(#text/maximum_bytes + 1))
+      print("Processing section " .. (i + 1) .. " of " .. math.floor(#text/maximum_bytes + 1))
       local piece = text:sub(i * maximum_bytes, (i + 1) * maximum_bytes - 1)
       result = send_prompt(partial_prompt .. piece)
       outputs[#outputs + 1] = result
-
-      -- temporary
-      utility.open("intermediates/" .. (i + 1) .. ".txt", "w", function(file)
-        file:write(result)
-        file:write("\n")
-      end)
-      print(#result .. " characters added to full context.")
+      print(#result .. " characters added to intermediate context.")
     end
 
     text = table.concat(outputs, "\n\n")
+    -- TODO handle if there is too much context!
+    write_all("intermediates/" .. name .. ".txt", text)
   end
 
+  print("Generating cover brief.")
   result = send_prompt(cover_brief_prompt .. text)
-  print(result)
+  write_all("cover_briefs/" .. name .. ".txt", result)
+  write_all("cover_briefs/for_gemini" .. name .. ".txt", name .. gemini_prompt .. result)
 end)
 
 timing_report()
