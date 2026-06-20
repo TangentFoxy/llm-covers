@@ -80,7 +80,7 @@ Avoid minor plot events.
 
 local gemini_prompt = [[
 
-Generate an ebook cover inset within an empty white border 10% larger than the cover using the following cover brief. It should be a flat graphic design file, with no artifacts of a physical object.
+Generate an ebook cover inset within an empty white border 10% larger than the cover using the following cover brief. It should be a flat graphic design file, with no artifacts of a physical object. The aspect ratio of an ebook is tall, not wide. The white border is very important. The title should only appear once on the cover.
 
 ]]
 
@@ -196,7 +196,7 @@ tree("extracted_texts", function(file_name)
   -- handle too much context (works with up to 100 slices)
   if #outputs > 10 then
     local context_slices = {}
-    while #outputs > 2 then
+    while #outputs > 2 do
       local output_slices = {}
       for i = 1, 10 do
         if #outputs >= 1 then
