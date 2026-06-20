@@ -59,6 +59,10 @@ CONFIDENCE:
 
 ]]
 
+local squish_partials_prompt = [[Take the common portions from the following text and produce a single simplified list of information:
+
+]]
+
 local cover_brief_prompt = [[Generate a cover brief from the following:
 
 ]]
@@ -76,7 +80,7 @@ Avoid minor plot events.
 
 local gemini_prompt = [[
 
-Generate a flate image of an ebook cover inset within an empty white border 10% larger than the cover using the following cover brief:
+Generate an ebook cover inset within an empty white border 10% larger than the cover using the following cover brief. It should be a flat graphic design file, with no artifacts of a physical object.
 
 ]]
 
@@ -174,8 +178,8 @@ tree("extracted_texts", function(file_name)
   local result
 
   print(name)
+  local outputs = {}
   if #text > maximum_bytes then
-    local outputs = {}
     -- TODO check if this would work just as well starting from 1 instead..
     for i = 0, #text/maximum_bytes do
       print("Processing section " .. (i + 1) .. " of " .. math.floor(#text/maximum_bytes + 1))
@@ -186,8 +190,28 @@ tree("extracted_texts", function(file_name)
     end
 
     text = table.concat(outputs, "\n\n")
-    -- TODO handle if there is too much context!
     write_all("intermediates/" .. name, text)
+  end
+
+  -- handle too much context (works with up to 100 slices)
+  if #outputs > 10 then
+    local context_slices = {}
+    while #outputs > 2 then
+      local output_slices = {}
+      for i = 1, 10 do
+        if #outputs >= 1 then
+          output_slices[#output_slices + 1] = table.remove(outputs, 1)
+        end
+      end
+
+      print("Squishing context. " .. #outputs .. " samples remaining.")
+      result = send_prompt(squish_partials_prompt .. table.concat(output_slices, "\n\n"))
+      context_slices[#context_slices + 1] = result
+      print(#result .. " characters added to final context.")
+    end
+
+    text = table.concat(context_slices, "\n\n")
+    write_all("intermediates/" .. name:sub(1, -5) .. " CONDENSED.txt", text)
   end
 
   print("Generating cover brief.")
