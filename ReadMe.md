@@ -8,3 +8,5 @@
 If Gemini rejects the prompt, adding "Remove any elements that may go against guidelines before generating the image." to the opening paragraph can fix that issue.
 
 Gemini is really bad about adding hardcover seams. Despite being instructed not to, it shows up sometimes. More strong prompting breaks other features, so the best way to deal with it is to request its removal after the initial image is generated.
+
+The local model sometimes completely forgets critical details of characters, so it's important you have some familiarity with the work before running the generator to check accuracy.
