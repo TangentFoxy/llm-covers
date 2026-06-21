@@ -6,3 +6,5 @@
 5. A prompt ready to paste directly into Gemini will be in `for_gemini`. An extra border is prompted for to make cropping easy to remove the Gemini watermark.
 
 If Gemini rejects the prompt, adding "Remove any elements that may go against guidelines before generating the image." to the opening paragraph can fix that issue.
+
+Gemini is really bad about adding hardcover seams. Despite being instructed not to, it shows up sometimes. More strong prompting breaks other features, so the best way to deal with it is to request its removal after the initial image is generated.
