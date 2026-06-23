@@ -80,7 +80,7 @@ Avoid minor plot events.
 
 local gemini_prompt = [[
 
-Generate an ebook cover inset within an empty white border 10% larger than the cover using the following cover brief. It should be a flat graphic design file, with no artifacts of a physical object. The aspect ratio of an ebook is tall, not wide. The white border is very important. The title should only appear once on the cover.
+Generate an ebook cover inset within an empty white border 10% larger than the cover using the following cover brief. It should be a flat graphic design file, with no artifacts of a physical object. The aspect ratio of an ebook is tall, not wide. The white border is very important, and should take up 10% of the area of the image. The title and author should only appear once on the cover. It must be sutiable for printing. Do not include the word "by" when adding the author's name to the cover.
 
 ]]
 
