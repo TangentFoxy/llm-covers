@@ -7,3 +7,5 @@ cover_briefs/**
 !cover_briefs/.gitkeep
 for_gemini/**
 !for_gemini/.gitkeep
+raw_ebooks/**
+!raw_ebooks/.gitkeep
