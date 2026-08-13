@@ -4,7 +4,7 @@ package.path = (arg[0]:match("@?(.*/)") or arg[0]:match("@?(.*\\)")) .. "lib" ..
 local utility = require "utility"
 
 local calibre_location = "/Applications/calibre.app"
-local config = utility.get_config()
+local config = utility.get_config("read-only")
 if config and config.llm_covers and config.llm_covers.calibre_location then
   calibre_location = config.llm_covers.calibre_location
 end
