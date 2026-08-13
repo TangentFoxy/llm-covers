@@ -10,3 +10,4 @@ for_gemini/**
 raw_ebooks/**
 !raw_ebooks/.gitkeep
 config.json
+config.json.lock
