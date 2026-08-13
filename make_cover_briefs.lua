@@ -217,7 +217,7 @@ tree("extracted_texts", function(file_name)
   print("Generating cover brief.")
   result = send_prompt(cover_brief_prompt .. text)
   write_all("cover_briefs/" .. name, result)
-  write_all("for_gemini/" .. name, name:sub(1, -5) .. gemini_prompt .. result)
+  write_all("for_gemini/" .. name, "Title: " .. name:sub(1, -5) .. gemini_prompt .. result)
 end)
 
 timing_report()
