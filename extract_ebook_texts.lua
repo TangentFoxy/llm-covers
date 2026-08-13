@@ -14,5 +14,9 @@ utility.ls("raw_ebooks", function(file_name)
   if extension then
     name = name:sub(1, -(#extension + 2))
   end
-  os.execute(calibre_location .. "/Contents/MacOS/ebook-convert " .. ("raw_ebooks/" .. file_name):enquote() .. " " .. ("extracted_texts/" .. name .. ".txt"):enquote())
+
+  local output_name = "extracted_texts/" .. name .. ".txt"
+  if utility.path_exists(output_name) then return end
+
+  os.execute(calibre_location .. "/Contents/MacOS/ebook-convert " .. ("raw_ebooks/" .. file_name):enquote() .. " " .. output_name:enquote())
 end)
