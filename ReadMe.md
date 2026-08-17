@@ -33,7 +33,7 @@ to check accuracy.
 
 ## Tasks
 - [ ] Add timestamps to when a prompt is sent.
-- [ ] Specify ETA when sending a prompt (1.5-8 minutes depending on length).
+- [ ] Specify ETA when sending a prompt (1.5-8 minutes depending on length). (Show as end time as well as relative time.)
 - [ ] option to delete input files or intermediate files at end of each operation step
 - [ ] make script resumable instead of having to restart per book
 - [ ] instead of placeholder directories, `mkdir -p` should be used to only make them when necessary
