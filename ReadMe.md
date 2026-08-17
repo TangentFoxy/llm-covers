@@ -30,3 +30,11 @@ removal after the initial image is generated.
 The local model sometimes completely forgets critical details of characters,
 so it's important you have some familiarity with the work before running the generator
 to check accuracy.
+
+## Tasks
+- [ ] Add timestamps to when a prompt is sent.
+- [ ] Specify ETA when sending a prompt (1.5-8 minutes depending on length). (Show as end time as well as relative time.)
+- [ ] option to delete input files or intermediate files at end of each operation step
+- [ ] make script resumable instead of having to restart per book
+- [ ] instead of placeholder directories, `mkdir -p` should be used to only make them when necessary
+- [ ] dry run to estimate total time before running full script, print starting ETA
