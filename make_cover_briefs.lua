@@ -177,20 +177,39 @@ tree("extracted_texts", function(file_name)
   local text = read_all(file_name)
   local result
 
+  -- TODO there is no way to recognize a dangling intermediate and pickup from there
   print(name)
   local outputs = {}
   if #text > maximum_bytes then
     -- TODO check if this would work just as well starting from 1 instead..
     for i = 0, #text/maximum_bytes do
       print("Processing section " .. (i + 1) .. " of " .. math.floor(#text/maximum_bytes + 1))
-      local piece = text:sub(i * maximum_bytes, (i + 1) * maximum_bytes - 1)
-      result = send_prompt(partial_prompt .. piece)
+
+      local intermediate_name = "intermediates/" .. name:sub(1, -5) .. "-" .. tostring(#outputs + 1) .. ".txt"
+      if utility.path_exists(intermediate_name) then
+        result = read_all(intermediate_name)
+        print("Loaded from intermediates.")
+      else
+        local piece = text:sub(i * maximum_bytes, (i + 1) * maximum_bytes - 1)
+        result = send_prompt(partial_prompt .. piece)
+        write_all(intermediate_name, result)
+      end
+
       outputs[#outputs + 1] = result
       print(#result .. " characters added to intermediate context.")
     end
 
     text = table.concat(outputs, "\n\n")
     write_all("intermediates/" .. name, text)
+    print("Saved full intermediate prompt.")
+
+    for i = 0, #text/maximum_bytes do
+      local intermediate_name = "intermediates/" .. name:sub(1, -5) .. "-" .. tostring(#outputs + 1) .. ".txt"
+      if utility.path_exists(intermediate_name) then
+        os.execute("rm " .. intermediate_name:enquote())
+      end
+      print("Removed excess intermediate texts.")
+    end
   end
 
   -- handle too much context (works with up to 100 slices)
