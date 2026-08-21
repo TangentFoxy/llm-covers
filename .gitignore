@@ -8,6 +8,5 @@ cover_briefs/**
 for_gemini/**
 !for_gemini/.gitkeep
 raw_ebooks/**
-!raw_ebooks/.gitkeep
 config.json
 config.json.lock
