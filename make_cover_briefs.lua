@@ -2,87 +2,10 @@
 
 package.path = (arg[0]:match("@?(.*/)") or arg[0]:match("@?(.*\\)")) .. "lib" .. package.config:sub(1, 1) .. "?.lua;" .. package.path
 local utility = require "utility"
+local prompts = require "prompts"
 
 local default_model = "gemma4:12b-mlx"
 local maximum_bytes = 40000
-
-local partial_prompt = [[You are extracting information for a later cover design process.
-
-This is only one section of a larger story.
-
-Do NOT attempt to design a cover.
-Do NOT decide what should appear on the cover.
-Do NOT write a summary.
-
-Extract only information that may be useful when creating a cover after all story sections have been analyzed.
-
-Return:
-
-GENRE:
-- up to 5 items
-
-SETTING:
-- locations
-- environments
-- time period
-
-CHARACTERS:
-- names
-- physical descriptions
-- distinctive visual traits
-
-CREATURES:
-- notable creatures
-
-OBJECTS:
-- important recurring items
-
-VISUAL MOTIFS:
-- recurring imagery
-- symbols
-- repeated visual elements
-
-THEMES:
-- major themes
-
-MOOD:
-- emotional tone
-
-COLORS:
-- colors strongly associated with scenes or imagery
-
-MEMORABLE VISUAL SCENES:
-- 3-10 visually striking moments
-
-CONFIDENCE:
-- how central each item appears to be
-
-]]
-
-local squish_partials_prompt = [[Take the common portions from the following text and produce a single simplified list of information:
-
-]]
-
-local cover_brief_prompt = [[Generate a cover brief from the following:
-
-]]
-
-local segmented_cover_brief_prompt = [[Generate a single cover brief.
-
-Prefer elements that:
-- appear repeatedly across chunks
-- have highest confidence
-- best represent the entire story
-
-Avoid minor plot events.
-
-]]
-
-local gemini_prompt = [[
-
-Generate an ebook cover inset within an empty white border 10% larger than the cover using the following cover brief. It should be a flat graphic design file, with no artifacts of a physical object. The aspect ratio of an ebook is tall, not wide. The white border is very important, and should take up 10% of the area of the image. The title and author should only appear once on the cover. It must be sutiable for printing. Do not include the word "by" when adding the author's name to the cover.
-
-]]
 
 local read_all = function(file_name)
   return utility.open(file_name, "r", function(file)
@@ -170,6 +93,51 @@ tree = function(path, fn)
   end)
 end
 
+local generate_cover_brief = function(name)
+  local text = read_all("intermediates/" .. name)
+  print("Generating cover brief.")
+  text = send_prompt(prompts.cover_brief .. text)
+  write_all("cover_briefs/" .. name, text)
+  write_all("for_gemini/" .. name, "Title: " .. name:sub(1, -5) .. prompts.for_gemini .. text)
+end
+
+local combine_summaries = function(name)
+  local summaries, i = {}, 1
+  while true do
+    local summary_path = "intermediates/" .. name:sub(1, -5) .. "-summaries-" .. i .. ".txt"
+    if utility.path_exists(summary_path) then
+      print("Restored summary " .. i .. ".")
+      summaries[i] = read_all(summary_path)
+    else
+      -- TODO how do we determine whether we ran out or needed to keep going?
+    end
+  end
+  -- TODO I lost track of what I'm trying to do here
+end
+
+os.execute("mkdir -p extracted_texts" .. utility.commands.silence_output)
+os.execute("mkdir -p intermediates" .. utility.commands.silence_output)
+os.execute("mkdir -p cover_briefs" .. utility.commands.silence_output)
+os.execute("mkdir -p for_gemini" .. utility.commands.silence_output)
+
+tree("extracted_texts", function(file_name)
+  local _, name, extension = utility.split_path_components(file_name)
+  if utility.path_exists("cover_briefs/" .. name) then return end
+
+  if utility.path_exists("intermediates/" .. name) then
+    generate_cover_brief(name)
+    return
+  end
+
+  if utility.path_exists("intermediates/" .. name:sub(1, -5) .. "-summaries-1.txt") then
+    combine_summaries(name)
+    generate_cover_brief(name)
+    return
+  end
+end)
+
+
+
 local process_intermediates = function(text, name)
   local result
   local outputs = {}
@@ -184,7 +152,7 @@ local process_intermediates = function(text, name)
       print("Loaded from file.")
     else
       local piece = text:sub(i * maximum_bytes, (i + 1) * maximum_bytes - 1)
-      result = send_prompt(partial_prompt .. piece)
+      result = send_prompt(prompts.section_summarization .. piece)
       write_all(intermediate_name, result)
     end
 
@@ -232,15 +200,15 @@ tree("extracted_texts", function(file_name)
   if #outputs > 10 then
     local context_slices = {}
     while #outputs > 2 do
-      local output_slices = {}
+      local summary_pieces = {}
       for i = 1, 10 do
         if #outputs >= 1 then
-          output_slices[#output_slices + 1] = table.remove(outputs, 1)
+          summary_pieces[#summary_pieces + 1] = table.remove(outputs, 1)
         end
       end
 
       print("Squishing context. " .. #outputs .. " samples remaining.")
-      result = send_prompt(squish_partials_prompt .. table.concat(output_slices, "\n\n"))
+      result = send_prompt(prompts.combine_summaries .. table.concat(summary_pieces, "\n\n"))
       context_slices[#context_slices + 1] = result
       print(#result .. " characters added to final context.")
     end
@@ -249,10 +217,6 @@ tree("extracted_texts", function(file_name)
     write_all("intermediates/" .. name:sub(1, -5) .. " CONDENSED.txt", text)
   end
 
-  print("Generating cover brief.")
-  result = send_prompt(cover_brief_prompt .. text)
-  write_all("cover_briefs/" .. name, result)
-  write_all("for_gemini/" .. name, "Title: " .. name:sub(1, -5) .. gemini_prompt .. result)
 end)
 
 timing_report()
