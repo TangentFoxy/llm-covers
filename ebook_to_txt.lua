@@ -9,6 +9,9 @@ if config and config.llm_covers and config.llm_covers.calibre_location then
   calibre_location = config.llm_covers.calibre_location
 end
 
+os.execute("mkdir -p raw_ebooks" .. utility.commands.silence_output)
+os.execute("mkdir -p extracted_texts" .. utility.commands.silence_output)
+
 utility.ls("raw_ebooks", function(file_name)
   local _, name, extension = utility.split_path_components(file_name)
   if extension then
