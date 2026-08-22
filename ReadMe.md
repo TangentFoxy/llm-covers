@@ -38,3 +38,7 @@ to check accuracy.
 - [ ] make script resumable instead of having to restart per book
 - [ ] instead of placeholder directories, `mkdir -p` should be used to only make them when necessary
 - [ ] dry run to estimate total time before running full script, print starting ETA
+- [ ] Build a list of files to work on and current states before doing anything by looping over source directories
+- [ ] Combine everything into one script to manage things
+- [ ] Allow specifiying a filter on what to process
+- [ ] Allow changing the maximum bytes per prompt dynamically (run smaller while I'm doing other things, run full while I'm asleep)
