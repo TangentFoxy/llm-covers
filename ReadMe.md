@@ -33,12 +33,13 @@ to check accuracy.
 
 ## Tasks
 - [ ] Add timestamps to when a prompt is sent.
-- [ ] Specify ETA when sending a prompt (1.5-8 minutes depending on length). (Show as end time as well as relative time.)
+- [ ] Specify ETA when sending a prompt (2.5-8 minutes depending on length). (Show as end time as well as relative time.)
 - [ ] option to delete input files or intermediate files at end of each operation step
-- [ ] make script resumable instead of having to restart per book
+- [x] make script resumable instead of having to restart per book
 - [ ] instead of placeholder directories, `mkdir -p` should be used to only make them when necessary
 - [ ] dry run to estimate total time before running full script, print starting ETA
-- [ ] Build a list of files to work on and current states before doing anything by looping over source directories
-- [ ] Combine everything into one script to manage things
+- [x] Build a list of files to work on and current states before doing anything by looping over source directories
+- [x] Combine everything into one script to manage things
 - [ ] Allow specifiying a filter on what to process
 - [ ] Allow changing the maximum bytes per prompt dynamically (run smaller while I'm doing other things, run full while I'm asleep)
+- [ ] specify config format
