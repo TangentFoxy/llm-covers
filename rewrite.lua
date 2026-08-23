@@ -2,7 +2,8 @@
 
 package.path = (arg[0]:match("@?(.*/)") or arg[0]:match("@?(.*\\)")) .. "lib" .. package.config:sub(1, 1) .. "?.lua;" .. package.path
 local utility = require "utility"
--- TODO import timing library
+local prompts = require "prompts"
+local timing = require "timing"
 
 local config = utility.get_config("read-only")
 if not config.llm_covers then config.llm_covers = {} end
@@ -10,7 +11,17 @@ if not config.llm_covers.calibre_location then config.llm_covers.calibre_locatio
 if not config.llm_covers.default_model then config.llm_covers.default_model = "gemma4:12b-mlx" end
 if not config.llm_covers.maximum_bytes then config.llm_covers.maximum_bytes = 40000 end
 
--- TODO import prompts, use new names from fork
+local read_all = function(file_name)
+  return utility.open(file_name, "r", function(file)
+    return file:read("*all")
+  end)
+end
+local write_all = function(file_name, text)
+  return utility.open(file_name, "w", function(file)
+    file:write(text)
+    file:write("\n")
+  end)
+end
 
 local strip_reasoning = function(text, reasoning_lines)
   if not reasoning_lines then reasoning_lines = {} end
@@ -31,18 +42,27 @@ local strip_reasoning = function(text, reasoning_lines)
   end
 end
 
--- TODO import and rewrite send_prompt to use new timing library
+local send_prompt = function(text, model)
+  if type(text) == "table" then text = table.concat(text, "\n") end
 
-local read_all = function(file_name)
-  return utility.open(file_name, "r", function(file)
-    return file:read("*all")
-  end)
-end
-local write_all = function(file_name, text)
-  return utility.open(file_name, "w", function(file)
+  local tmp_file_name = utility.tmp_file_name()
+  utility.open(tmp_file_name, "w", function(file)
     file:write(text)
-    file:write("\n")
   end)
+
+  timing:start()
+  -- word wrap breaks the raw output badly, so I need to implement my own for terminal output somehow
+  local output = utility.capture_safe("cat " .. tmp_file_name:enquote() .. " | ollama run " .. (model or default_model) .. " --nowordwrap")
+  os.execute("ollama stop " .. (model or default_model)) -- NOTE this makes things slower, but more stable
+  local delta = timing:stop()
+
+  print("Took " .. delta .. " minutes.")
+  os.execute("rm " .. tmp_file_name)
+  if not output then error("ollama failed to generate output") end
+
+  output = output:sub(1, -2) -- strip extra newline from utility.capture_safe
+  output = strip_reasoning(output)
+  return output
 end
 
 local make_directories = function()
@@ -166,7 +186,7 @@ local condense_summary = function(name, data, sections)
       print("Loaded condensed summary segment. " .. #sections .. " sections remaining.")
     else
       print("Condensing summary. " .. #sections .. " sections remaining.")
-      local text = send_prompt(squish_partials_prompt .. table.concat(sections_slice, "\n\n"))
+      local text = send_prompt(prompts.combine_summaries .. table.concat(sections_slice, "\n\n"))
       condensed_sections[#condensed_sections + 1] = text
       print(#text .. " characters added to final context.")
       write_all(intermediate_condensation_file, text)
@@ -199,7 +219,7 @@ local generate_summary = function(name, data)
     else
       print("Processing section " .. (i + 1) .. " of " .. math.floor(data.extracted_file_size/config.llm_covers.maximum_bytes + 1))
       local section = text:sub(i * config.llm_covers.maximum_bytes, (i + 1) * config.llm_covers.maximum_bytes - 1)
-      section = send_prompt(partial_prompt .. section)
+      section = send_prompt(prompts.section_summarization .. section)
       sections[#sections + 1] = section
       print(#section .. " characters added to intermediate context.")
       write_all(intermediate_section_file, section)
@@ -238,17 +258,23 @@ local generate_cover_briefs = function(books)
     end
 
     print("Generating cover brief.")
-    text = send_prompt(cover_brief_prompt .. text)
+    text = send_prompt(prompts.cover_brief .. text)
 
     local cover_brief_file = "cover_briefs/" .. name .. ".txt"
     write_all(cover_brief_file, text)
-    write_all("for_gemini/" .. name .. ".txt", "Title: " .. name .. gemini_prompt .. text)
+    write_all("for_gemini/" .. name .. ".txt", "Title: " .. name .. prompts.for_gemini .. text)
     data.cover_brief_file = cover_brief_file
   end
 end
 
 make_directories()
-generate_cover_briefs(get_books())
+
+local books = get_books()
+convert_ebooks(books)
+generate_cover_briefs(books)
+
+print("")
+timing:print_report()
 
 -- ebook_file, extracted_file, extracted_file_size,
 -- intermediate_file, condensed_intermediate_file, cover_brief_file
