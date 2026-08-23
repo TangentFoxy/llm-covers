@@ -50,11 +50,11 @@ local send_prompt = function(text, model)
     file:write(text)
   end)
 
-  timing:start()
+  timing.start()
   -- word wrap breaks the raw output badly, so I need to implement my own for terminal output somehow
   local output = utility.capture_safe("cat " .. tmp_file_name:enquote() .. " | ollama run " .. (model or default_model) .. " --nowordwrap")
   os.execute("ollama stop " .. (model or default_model)) -- NOTE this makes things slower, but more stable
-  local delta = timing:stop()
+  local delta = timing.stop()
 
   print("Took " .. delta .. " minutes.")
   os.execute("rm " .. tmp_file_name)
@@ -267,14 +267,30 @@ local generate_cover_briefs = function(books)
   end
 end
 
+local estimate_time_required = function(books)
+  local sum, count = 0, 0
+  for name, data in pairs(books) do
+    if data.cover_brief_file then return end
+    sum = sum + 60 * (2 + data.extracted_file_size/(config.llm_covers.maximum_bytes/7.5))
+    count = count + 1
+  end
+
+  print(count .. " cover briefs to generate. Estimated time: "
+    .. timing.seconds_to_minutes(sum) .. " minutes.")
+end
+
 make_directories()
 
 local books = get_books()
 convert_ebooks(books)
+
+estimate_time_required(books)
+print("")
+
 generate_cover_briefs(books)
 
 print("")
-timing:print_report()
+timing.print_report()
 
 -- ebook_file, extracted_file, extracted_file_size,
 -- intermediate_file, condensed_intermediate_file, cover_brief_file
