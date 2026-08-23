@@ -156,17 +156,20 @@ end
 
 local convert_ebooks = function(books)
   for name, data in pairs(books) do
-    if data.extracted_file then return end
-    if not data.ebook_file then return end
+    local function loop()
+      if data.extracted_file then return end
+      if not data.ebook_file then return end
 
-    local extracted_file = "extracted_texts/" .. name .. ".txt"
-    os.execute(config.llm_covers.calibre_location .. "/Contents/MacOS/ebook-convert "
-      .. data.ebook_file:enquote() .. " " .. extracted_file:enquote())
+      local extracted_file = "extracted_texts/" .. name .. ".txt"
+      os.execute(config.llm_covers.calibre_location .. "/Contents/MacOS/ebook-convert "
+        .. data.ebook_file:enquote() .. " " .. extracted_file:enquote())
 
-    if utility.path_exists(extracted_file) then
-      data.extracted_file = extracted_file
-      data.extracted_file_size = utility.file_size(extracted_file)
+      if utility.path_exists(extracted_file) then
+        data.extracted_file = extracted_file
+        data.extracted_file_size = utility.file_size(extracted_file)
+      end
     end
+    loop()
   end
 end
 
@@ -248,32 +251,38 @@ end
 
 local generate_cover_briefs = function(books)
   for name, data in pairs(books) do
-    if data.cover_brief_file then return end
-    print(name)
+    local function loop()
+      if data.cover_brief_file then return end
+      print(name)
 
-    local text
-    if data.extracted_file_size > config.llm_covers.maximum_bytes then
-      text = generate_summary(name, data)
-    else
-      text = read_all(extracted_file)
+      local text
+      if data.extracted_file_size > config.llm_covers.maximum_bytes then
+        text = generate_summary(name, data)
+      else
+        text = read_all(data.extracted_file)
+      end
+
+      print("Generating cover brief.")
+      text = send_prompt(prompts.cover_brief .. text)
+
+      local cover_brief_file = "cover_briefs/" .. name .. ".txt"
+      write_all(cover_brief_file, text)
+      write_all("for_gemini/" .. name .. ".txt", "Title: " .. name .. prompts.for_gemini .. text)
+      data.cover_brief_file = cover_brief_file
     end
-
-    print("Generating cover brief.")
-    text = send_prompt(prompts.cover_brief .. text)
-
-    local cover_brief_file = "cover_briefs/" .. name .. ".txt"
-    write_all(cover_brief_file, text)
-    write_all("for_gemini/" .. name .. ".txt", "Title: " .. name .. prompts.for_gemini .. text)
-    data.cover_brief_file = cover_brief_file
+    loop()
   end
 end
 
 local estimate_time_required = function(books)
   local sum, count = 0, 0
   for name, data in pairs(books) do
-    if data.cover_brief_file then return end
-    sum = sum + 60 * (2 + data.extracted_file_size/(config.llm_covers.maximum_bytes/7.5))
-    count = count + 1
+    local function loop()
+      if data.cover_brief_file then return end
+      sum = sum + 60 * (1.5 + data.extracted_file_size/(config.llm_covers.maximum_bytes/7.5))
+      count = count + 1
+    end
+    loop()
   end
 
   print(count .. " cover briefs to generate. Estimated time: "
@@ -292,6 +301,8 @@ generate_cover_briefs(books)
 
 print("")
 timing.print_report()
+
+-- utility.print_table(books)
 
 -- ebook_file, extracted_file, extracted_file_size,
 -- intermediate_file, condensed_intermediate_file, cover_brief_file
