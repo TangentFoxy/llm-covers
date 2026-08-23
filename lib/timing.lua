@@ -18,6 +18,8 @@ function timing.stop()
 end
 
 function timing.print_report()
+  if #entries == 0 then return end
+
   local minimum, maximum, sum = math.huge, -math.huge, 0
   for _, data in pairs(entries) do
     local delta = data.delta

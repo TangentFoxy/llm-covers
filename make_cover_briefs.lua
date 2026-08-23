@@ -52,8 +52,8 @@ local send_prompt = function(text, model)
 
   timing.start()
   -- word wrap breaks the raw output badly, so I need to implement my own for terminal output somehow
-  local output = utility.capture_safe("cat " .. tmp_file_name:enquote() .. " | ollama run " .. (model or default_model) .. " --nowordwrap")
-  os.execute("ollama stop " .. (model or default_model)) -- NOTE this makes things slower, but more stable
+  local output = utility.capture_safe("cat " .. tmp_file_name:enquote() .. " | ollama run " .. (model or config.llm_covers.default_model) .. " --nowordwrap")
+  os.execute("ollama stop " .. (model or config.llm_covers.default_model)) -- NOTE this makes things slower, but more stable
   local delta = timing.stop()
 
   print("Took " .. delta .. " minutes.")
@@ -165,6 +165,7 @@ local convert_ebooks = function(books)
 
     if utility.path_exists(extracted_file) then
       data.extracted_file = extracted_file
+      data.extracted_file_size = utility.file_size(extracted_file)
     end
   end
 end

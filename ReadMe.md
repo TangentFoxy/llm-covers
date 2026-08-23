@@ -31,7 +31,8 @@ output.)
 ```
 
 The above are the default settings. If you need something different, you only
-need to specify the changes.
+need to specify the changes. (There is a `config.json.example` file equivalent
+to the above.)
 
 ### Gemini Issues
 None of this works unless you **disable Gemini's personalization/memory**,
