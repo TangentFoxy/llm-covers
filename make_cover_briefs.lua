@@ -3,9 +3,13 @@
 package.path = (arg[0]:match("@?(.*/)") or arg[0]:match("@?(.*\\)")) .. "lib" .. package.config:sub(1, 1) .. "?.lua;" .. package.path
 local utility = require "utility"
 local prompts = require "prompts"
+local timing = require "timing"
 
-local default_model = "gemma4:12b-mlx"
-local maximum_bytes = 40000
+local config = utility.get_config("read-only")
+if not config.llm_covers then config.llm_covers = {} end
+if not config.llm_covers.calibre_location then config.llm_covers.calibre_location = "/Applications/calibre.app" end
+if not config.llm_covers.default_model then config.llm_covers.default_model = "gemma4:12b-mlx" end
+if not config.llm_covers.maximum_bytes then config.llm_covers.maximum_bytes = 40000 end
 
 local read_all = function(file_name)
   return utility.open(file_name, "r", function(file)
@@ -17,19 +21,6 @@ local write_all = function(file_name, text)
     file:write(text)
     file:write("\n")
   end)
-end
-
-local timings = {}
-local timing_report = function()
-  local minimum, maximum, sum = math.huge, 0, 0
-  for _, delta in ipairs(timings) do
-    if delta > maximum then maximum = delta end
-    if delta < minimum then minimum = delta end
-    sum = sum + delta
-  end
-  print("")
-  print("Prompts took a total of " .. sum .. " minutes.")
-  print("Average: " .. math.floor(sum / #timings) .. " minutes. Fastest: " .. minimum .. " minutes. Slowest: " .. maximum .. " minutes.")
 end
 
 local strip_reasoning = function(text, reasoning_lines)
@@ -59,20 +50,27 @@ local send_prompt = function(text, model)
     file:write(text)
   end)
 
-  local start_time = os.time()
+  timing:start()
   -- word wrap breaks the raw output badly, so I need to implement my own for terminal output somehow
   local output = utility.capture_safe("cat " .. tmp_file_name:enquote() .. " | ollama run " .. (model or default_model) .. " --nowordwrap")
   os.execute("ollama stop " .. (model or default_model)) -- NOTE this makes things slower, but more stable
-  local delta = math.floor( (os.time() - start_time) / 60 * 10 ) / 10
+  local delta = timing:stop()
+
   print("Took " .. delta .. " minutes.")
-  timings[#timings + 1] = delta
   os.execute("rm " .. tmp_file_name)
   if not output then error("ollama failed to generate output") end
+
   output = output:sub(1, -2) -- strip extra newline from utility.capture_safe
-
   output = strip_reasoning(output)
-
   return output
+end
+
+local make_directories = function()
+  os.execute("mkdir -p raw_ebooks" .. utility.commands.silence_output)
+  os.execute("mkdir -p extracted_texts" .. utility.commands.silence_output)
+  os.execute("mkdir -p intermediates" .. utility.commands.silence_output)
+  os.execute("mkdir -p cover_briefs" .. utility.commands.silence_output)
+  os.execute("mkdir -p for_gemini" .. utility.commands.silence_output)
 end
 
 local tree
@@ -93,130 +91,190 @@ tree = function(path, fn)
   end)
 end
 
-local generate_cover_brief = function(name)
-  local text = read_all("intermediates/" .. name)
-  print("Generating cover brief.")
-  text = send_prompt(prompts.cover_brief .. text)
-  write_all("cover_briefs/" .. name, text)
-  write_all("for_gemini/" .. name, "Title: " .. name:sub(1, -5) .. prompts.for_gemini .. text)
-end
+local find_ebook_files = function(books)
+  if not books then books = {} end
 
-local combine_summaries = function(name)
-  local summaries, i = {}, 1
-  while true do
-    local summary_path = "intermediates/" .. name:sub(1, -5) .. "-summaries-" .. i .. ".txt"
-    if utility.path_exists(summary_path) then
-      print("Restored summary " .. i .. ".")
-      summaries[i] = read_all(summary_path)
-    else
-      -- TODO how do we determine whether we ran out or needed to keep going?
-    end
-  end
-  -- TODO I lost track of what I'm trying to do here
-end
-
-os.execute("mkdir -p extracted_texts" .. utility.commands.silence_output)
-os.execute("mkdir -p intermediates" .. utility.commands.silence_output)
-os.execute("mkdir -p cover_briefs" .. utility.commands.silence_output)
-os.execute("mkdir -p for_gemini" .. utility.commands.silence_output)
-
-tree("extracted_texts", function(file_name)
-  local _, name, extension = utility.split_path_components(file_name)
-  if utility.path_exists("cover_briefs/" .. name) then return end
-
-  if utility.path_exists("intermediates/" .. name) then
-    generate_cover_brief(name)
-    return
-  end
-
-  if utility.path_exists("intermediates/" .. name:sub(1, -5) .. "-summaries-1.txt") then
-    combine_summaries(name)
-    generate_cover_brief(name)
-    return
-  end
-end)
-
-
-
-local process_intermediates = function(text, name)
-  local result
-  local outputs = {}
-
-  -- TODO check if this would work just as well starting from 1 instead..
-  for i = 0, #text/maximum_bytes do
-    print("Processing section " .. (i + 1) .. " of " .. math.floor(#text/maximum_bytes + 1))
-
-    local intermediate_name = "intermediates/" .. name:sub(1, -5) .. "-" .. tostring(#outputs + 1) .. ".txt"
-    if utility.path_exists(intermediate_name) then
-      result = read_all(intermediate_name)
-      print("Loaded from file.")
-    else
-      local piece = text:sub(i * maximum_bytes, (i + 1) * maximum_bytes - 1)
-      result = send_prompt(prompts.section_summarization .. piece)
-      write_all(intermediate_name, result)
+  tree("raw_ebooks", function(file_name)
+    local _, name, extension = utility.split_path_components(file_name)
+    if extension then
+      name = name:sub(1, -(#extension + 2))
     end
 
-    outputs[#outputs + 1] = result
-    print(#result .. " characters added to intermediate context.")
-  end
-
-  text = table.concat(outputs, "\n\n")
-  write_all("intermediates/" .. name, text)
-  print("Saved primary intermediate prompt.")
-
-  for i = 0, #text/maximum_bytes do
-    local intermediate_name = "intermediates/" .. name:sub(1, -5) .. "-" .. tostring(#outputs + 1) .. ".txt"
-    if utility.path_exists(intermediate_name) then
-      os.execute("rm " .. intermediate_name:enquote())
+    if not books[name] then
+      books[name] = {}
     end
-  end
-  print("Removed redundant intermediate prompts.")
+    books[name].ebook_file = file_name
+  end)
 
-  return result, outputs, text
+  return books
 end
 
-tree("extracted_texts", function(file_name)
-  local path, name, extension = utility.split_path_components(file_name)
-  if utility.path_exists("cover_briefs/" .. name) then return end
+local find_extracted_texts = function(books)
+  if not books then books = {} end
 
-  local text = read_all(file_name)
-  local result
+  tree("extracted_texts", function(file_name)
+    local _, name, extension = utility.split_path_components(file_name)
+    if extension then
+      name = name:sub(1, -(#extension + 2))
+    end
 
-  -- TODO there is no way to recognize a dangling intermediate and pickup from there
-  print(name)
-  local outputs
+    if not books[name] then
+      books[name] = {}
+    end
+    books[name].extracted_file = file_name
+    books[name].extracted_file_size = utility.file_size(file_name)
+  end)
 
-  -- restore previous intermediate
-  -- (this is where I realized I should redo how I'm processing all of this)
-  if utility.path_exists("intermediates/" .. name) then
+  return books
+end
+
+local find_cover_briefs = function(books)
+  if not books then books = {} end
+
+  tree("cover_briefs", function(file_name)
+    local _, name, extension = utility.split_path_components(file_name)
+    if extension then
+      name = name:sub(1, -(#extension + 2))
+    end
+
+    if not books[name] then
+      books[name] = {}
+    end
+    books[name].cover_brief_file = file_name
+  end)
+
+  return books
+end
+
+local get_books = function()
+  local books = {}
+  find_ebook_files(books)
+  find_extracted_texts(books)
+  find_cover_briefs(books)
+  return books
+end
+
+local convert_ebooks = function(books)
+  for name, data in pairs(books) do
+    if data.extracted_file then return end
+    if not data.ebook_file then return end
+
+    local extracted_file = "extracted_texts/" .. name .. ".txt"
+    os.execute(config.llm_covers.calibre_location .. "/Contents/MacOS/ebook-convert "
+      .. data.ebook_file:enquote() .. " " .. extracted_file:enquote())
+
+    if utility.path_exists(extracted_file) then
+      data.extracted_file = extracted_file
+    end
   end
+end
 
-  if #text > maximum_bytes then
-    -- previously overwrites result, text, outputs
-    result, outputs, text = process_intermediates(text, name)
-  end
+local condense_summary = function(name, data, sections)
+  local condensed_sections = {}
 
-  -- handle too much context (works with up to 100 slices)
-  if #outputs > 10 then
-    local context_slices = {}
-    while #outputs > 2 do
-      local summary_pieces = {}
-      for i = 1, 10 do
-        if #outputs >= 1 then
-          summary_pieces[#summary_pieces + 1] = table.remove(outputs, 1)
-        end
+  while #sections > 2 do -- this intentionally can skip the end of a book?
+    local sections_slice = {}
+    for i = 1, 10 do
+      if #sections >= 1 then
+        sections_slice[#sections_slice + 1] = table.remove(sections, 1)
       end
-
-      print("Squishing context. " .. #outputs .. " samples remaining.")
-      result = send_prompt(prompts.combine_summaries .. table.concat(summary_pieces, "\n\n"))
-      context_slices[#context_slices + 1] = result
-      print(#result .. " characters added to final context.")
     end
 
-    text = table.concat(context_slices, "\n\n")
-    write_all("intermediates/" .. name:sub(1, -5) .. " CONDENSED.txt", text)
+    local intermediate_condensation_file = "intermediates/" .. name .. "-" .. (#condensed_sections + 1) .. "-condensed.txt"
+    if utility.path_exists(intermediate_condensation_file) then
+      condensed_sections[#condensed_sections + 1] = read_all(intermediate_condensation_file)
+      print("Loaded condensed summary segment. " .. #sections .. " sections remaining.")
+    else
+      print("Condensing summary. " .. #sections .. " sections remaining.")
+      local text = send_prompt(prompts.combine_summaries .. table.concat(sections_slice, "\n\n"))
+      condensed_sections[#condensed_sections + 1] = text
+      print(#text .. " characters added to final context.")
+      write_all(intermediate_condensation_file, text)
+    end
   end
 
-end)
+  text = table.concat(condensed_sections, "\n\n")
+  local condensed_intermediate_file = "intermediates/" .. name .. " CONDENSED.txt"
+  write_all(condensed_intermediate_file, text)
+  data.condensed_intermediate_file = condensed_intermediate_file
 
-timing_report()
+  -- if deleted any sooner, could break resuming
+  for i = 1, #condensed_sections do
+    local intermediate_condensation_file = "intermediates/" .. name .. "-" .. i .. "-condensed.txt"
+    os.execute("rm " .. intermediate_condensation_file:enquote())
+  end
+
+  return text
+end
+
+local generate_summary = function(name, data)
+  local text = read_all(data.extracted_file)
+  local sections = {}
+
+  for i = 0, data.extracted_file_size/config.llm_covers.maximum_bytes do
+    local intermediate_section_file = "intermediates/" .. name .. "-" .. i .. ".txt"
+    if utility.path_exists(intermediate_section_file) then
+      sections[#sections + 1] = read_all(intermediate_section_file)
+      print("Loaded section " .. (i + 1) .. ".")
+    else
+      print("Processing section " .. (i + 1) .. " of " .. math.floor(data.extracted_file_size/config.llm_covers.maximum_bytes + 1))
+      local section = text:sub(i * config.llm_covers.maximum_bytes, (i + 1) * config.llm_covers.maximum_bytes - 1)
+      section = send_prompt(prompts.section_summarization .. section)
+      sections[#sections + 1] = section
+      print(#section .. " characters added to intermediate context.")
+      write_all(intermediate_section_file, section)
+    end
+  end
+
+  text = table.concat(sections, "\n\n")
+  local intermediate_file = "intermediates/" .. name .. ".txt"
+  write_all(intermediate_file, text)
+  data.intermediate_file = intermediate_file
+
+  if #sections > 10 then
+    text = condense_summary(name, data, sections)
+  end
+
+  -- if these temporary files are removed before condense_summary is called,
+  --   sections cannot be individually loaded, which breaks condense_summary
+  for i = 0, data.extracted_file_size/config.llm_covers.maximum_bytes do
+    local intermediate_section_file = "intermediates/" .. name .. "-" .. i .. ".txt"
+    os.execute("rm " .. intermediate_section_file:enquote())
+  end
+
+  return text
+end
+
+local generate_cover_briefs = function(books)
+  for name, data in pairs(books) do
+    if data.cover_brief_file then return end
+    print(name)
+
+    local text
+    if data.extracted_file_size > config.llm_covers.maximum_bytes then
+      text = generate_summary(name, data)
+    else
+      text = read_all(extracted_file)
+    end
+
+    print("Generating cover brief.")
+    text = send_prompt(prompts.cover_brief .. text)
+
+    local cover_brief_file = "cover_briefs/" .. name .. ".txt"
+    write_all(cover_brief_file, text)
+    write_all("for_gemini/" .. name .. ".txt", "Title: " .. name .. prompts.for_gemini .. text)
+    data.cover_brief_file = cover_brief_file
+  end
+end
+
+make_directories()
+
+local books = get_books()
+convert_ebooks(books)
+generate_cover_briefs(books)
+
+print("")
+timing:print_report()
+
+-- ebook_file, extracted_file, extracted_file_size,
+-- intermediate_file, condensed_intermediate_file, cover_brief_file
