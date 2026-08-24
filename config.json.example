@@ -1,5 +1,7 @@
 {
   "llm_covers": {
-    "calibre_location": "/Applications/calibre.app"
+    "calibre_location": "/Applications/calibre.app",
+    "default_model": "gemma4:12b-mlx",
+    "maximum_bytes": 40000
   }
 }
