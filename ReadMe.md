@@ -58,13 +58,12 @@ generator to check accuracy.
 
 ## Tasks
 - [ ] Add timestamps to when a prompt is sent.
-- [ ] Specify ETA when sending a prompt (2.5-8 minutes depending on length). (Show as end time as well as relative time.)
+- [ ] Specify ETA when sending a prompt (use numbers from current estimator depending on length). (Show as end time as well as relative time.)
 - [ ] option to delete input files or intermediate files at end of each major operation segment (or after its finisher..)
-- [x] instead of placeholder directories, `mkdir -p` should be used to only make them when necessary
-- [x] make script resumable instead of having to restart per book
-- [x] dry run to estimate total time before running full script, print starting ETA
-- [x] Build a list of files to work on and current states before doing anything by looping over source directories
-- [x] Combine everything into one script to manage things
 - [ ] Allow specifying a filter on what to process
 - [ ] Allow changing the maximum bytes per prompt dynamically (run smaller while I'm doing other things, run full while I'm asleep)
-- [x] specify config format
+- [ ] `argparse` + ability to
+  - [ ] only convert ebooks or
+  - [ ] only generate cover briefs or
+  - [ ] only generate single pass cover briefs or
+  - [ ] list how many are left only
