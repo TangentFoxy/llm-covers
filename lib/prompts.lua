@@ -61,9 +61,15 @@ prompts.cover_brief = [[Generate a cover brief from the following:
 
 ]]
 
-prompts.for_gemini = [[
+prompts.prior_gemini_prompt = [[
 
 Generate an ebook cover inset within an empty white border 10% larger than the cover using the following cover brief. It should be a flat graphic design file, with no artifacts of a physical object. The aspect ratio of an ebook is tall, not wide. The white border is very important, and should take up 10% of the area of the image. The title and author should only appear once on the cover. It must be sutiable for printing. Do not include the word "by" when adding the author's name to the cover.
+
+]]
+
+prompts.for_gemini = [[
+
+Generate an ebook cover using the following cover brief. It should be a flat graphic design file, with no artifacts of a physical object. The aspect ratio of an ebook is tall, not wide. The title and author should only appear once on the cover. It must be sutiable for printing. Do not include the word "by" when adding the author's name to the cover. If an underscore is present in the title, that is an encoding mistake, it should be a colon. The author is separated from the title by a hyphen, the last hyphen on the title line.
 
 ]]
 
