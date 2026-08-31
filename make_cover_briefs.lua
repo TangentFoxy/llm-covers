@@ -279,6 +279,7 @@ local estimate_time_required = function(books)
   for name, data in pairs(books) do
     local function loop()
       if data.cover_brief_file then return end
+      if not data.extracted_file then return end
       sum = sum + 60 * (1.5 + data.extracted_file_size/(config.llm_covers.maximum_bytes/6))
       count = count + 1
     end
