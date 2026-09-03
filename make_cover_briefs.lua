@@ -173,6 +173,45 @@ local convert_ebooks = function(books)
   end
 end
 
+-- TODO deal with the fact that this function is a clone with only a couple line changes
+local compress_it_again = function(name, data, sections)
+  local condensed_sections = {}
+
+  while #sections > 2 do -- this intentionally can skip the end of a book?
+    local sections_slice = {}
+    for i = 1, 10 do
+      if #sections >= 1 then
+        sections_slice[#sections_slice + 1] = table.remove(sections, 1)
+      end
+    end
+
+    local intermediate_condensation_file = "intermediates/" .. name .. "-" .. (#condensed_sections + 1) .. "-super-condensed.txt"
+    if utility.path_exists(intermediate_condensation_file) then
+      condensed_sections[#condensed_sections + 1] = read_all(intermediate_condensation_file)
+      print("Loaded condensed summary segment. " .. #sections .. " sections remaining.")
+    else
+      print("Condensing summary. " .. #sections .. " sections remaining.")
+      local text = send_prompt(prompts.combine_summaries .. table.concat(sections_slice, "\n\n"))
+      condensed_sections[#condensed_sections + 1] = text
+      print(#text .. " characters added to final context.")
+      write_all(intermediate_condensation_file, text)
+    end
+  end
+
+  text = table.concat(condensed_sections, "\n\n")
+  local condensed_intermediate_file = "intermediates/" .. name .. " SUPER CONDENSED.txt"
+  write_all(condensed_intermediate_file, text)
+  data.condensed_intermediate_file = condensed_intermediate_file
+
+  -- if deleted any sooner, could break resuming
+  for i = 1, #condensed_sections do
+    local intermediate_condensation_file = "intermediates/" .. name .. "-" .. i .. "-super-condensed.txt"
+    os.execute("rm " .. intermediate_condensation_file:enquote())
+  end
+
+  return text
+end
+
 local condense_summary = function(name, data, sections)
   local condensed_sections = {}
 
@@ -201,6 +240,10 @@ local condense_summary = function(name, data, sections)
   local condensed_intermediate_file = "intermediates/" .. name .. " CONDENSED.txt"
   write_all(condensed_intermediate_file, text)
   data.condensed_intermediate_file = condensed_intermediate_file
+
+  if #condensed_sections > 15 then
+    text = compress_it_again(name, data, condensed_sections)
+  end
 
   -- if deleted any sooner, could break resuming
   for i = 1, #condensed_sections do
