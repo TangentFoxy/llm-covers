@@ -67,5 +67,5 @@ generator to check accuracy.
   - [ ] only generate cover briefs or
   - [ ] only generate single pass cover briefs or
   - [ ] list how many are left only
-- [ ] I have an item with over 300 parts in it. Another level of compression needs to be added!
+- [x] I have an item with over 300 parts in it. Another level of compression needs to be added!
 - [ ] Change Gemini prompt because it is *obsessed* with putting colons EVERYWHERE.
