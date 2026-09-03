@@ -14,10 +14,11 @@ A simple tool for using local LLMs to generate cover briefs for ebooks.
 4. Run `make_cover_briefs.lua`
 
 Cover briefs will be placed in `cover_briefs`. A prompt ready to paste directly
-into Gemini will be in `for_gemini`. An extra border is prompted for to make
-cropping easy to remove the Gemini watermark. (There are other small changes to
-increase likelihood of Gemini following the prompt correctly and making a good
-output.)
+into Gemini will be in `for_gemini`.
+
+The local model sometimes completely forgets critical details of characters, so
+it's important you have some familiarity with the work before running the
+generator to check accuracy.
 
 ### Config file format
 ```json
@@ -39,22 +40,24 @@ None of this works unless you **disable Gemini's personalization/memory**,
 because it pollutes context extremely badly and will randomly add elements and
 rejections from different conversations everywhere.
 
-If Gemini rejects the prompt, adding
-<code id="d2651e">Remove any elements that may go against guidelines before generating the image.</code>
-<button onclick="navigator.clipboard.writeText(d2651e.textContent)">⧉</button>
-to the opening paragraph can fix that issue.
-- This suddenly got a lot less effective. I recommend instead telling it to
-  rewrite the prompt and then in a separate conversation, use that instead. I
-  also recommend one retry before modifying it.
+If you are able to use Gemini Flash or Flash-Lite, it works far better than Pro.
+Pro tends to invent additional details, refuse to respond, fail to respond, or
+make modifications you didn't ask for. I genuinely cannot understand how it is
+*so much worse* at this.
 
 Gemini is really bad about adding hardcover seams. Despite being instructed not
-to, it shows up sometimes. More strong prompting breaks other requested
+to, it shows up often. More strong prompting breaks other requested
 features, so the best way to deal with it is to request its removal after the
 initial image is generated.
 
-The local model sometimes completely forgets critical details of characters, so
-it's important you have some familiarity with the work before running the
-generator to check accuracy.
+If Gemini rejects the prompt, adding
+<code id="d2651e">Remove any elements that may go against guidelines before generating the image.</code>
+<button onclick="navigator.clipboard.writeText(d2651e.textContent)">⧉</button>
+to the opening paragraph can *sometimes* fix that issue.
+- Telling it to rewrite the prompt and then using *that* in a separate
+  conversation tends to work better.
+- I typically just re-send it repeatedly, as it's easier and eventually works
+  most of the time.
 
 ## Tasks
 - [ ] Add timestamps to when a prompt is sent.
