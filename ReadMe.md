@@ -1,4 +1,6 @@
 # llm-covers
+Makes placeholder cover briefs for ebooks.
+
 A simple tool for using local LLMs to generate cover briefs for ebooks.
 
 ## Requirements
