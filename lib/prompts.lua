@@ -63,7 +63,7 @@ prompts.cover_brief = [[Generate a cover brief from the following:
 
 prompts.for_gemini = [[
 
-Generate an ebook cover using the following cover brief. It should be a flat graphic design file, with no artifacts of a physical object. The aspect ratio of an ebook is tall, not wide. The title and author should only appear once on the cover. It must be sutiable for printing. Do not include the word "by" on the cover. An underscore in the title should be replaced with a colon, but not hyphens or as a separator between the title and author. The author is separated from the title by the last hyphen on the line showing the title and author.
+Generate an ebook cover using the following cover brief. It should be a flat graphic design file, with no artifacts of a physical object. The aspect ratio of an ebook is tall, not wide. The title and author should only appear once on the cover. It must be suitable for printing. Do not include the word "by" on the cover. An underscore in the title should be replaced with a colon, but not hyphens or as a separator between the title and author. The author is separated from the title by the last hyphen on the line showing the title and author.
 
 ]]
 
