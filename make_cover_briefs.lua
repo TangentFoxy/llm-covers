@@ -8,7 +8,7 @@ local timing = require "timing"
 local config = utility.get_config("read-only")
 if not config.llm_covers then config.llm_covers = {} end
 if not config.llm_covers.calibre_location then config.llm_covers.calibre_location = "/Applications/calibre.app" end
-if not config.llm_covers.default_model then config.llm_covers.default_model = "gemma4:12b-mlx" end
+if not config.llm_covers.default_model then config.llm_covers.default_model = "gemma4:e2b-mlx" end
 if not config.llm_covers.maximum_bytes then config.llm_covers.maximum_bytes = 40000 end
 
 local read_all = function(file_name)
@@ -53,7 +53,7 @@ local send_prompt = function(text, model)
   timing.start()
   -- word wrap breaks the raw output badly, so I need to implement my own for terminal output somehow
   local output = utility.capture_safe("cat " .. tmp_file_name:enquote() .. " | ollama run " .. (model or config.llm_covers.default_model) .. " --nowordwrap")
-  os.execute("ollama stop " .. (model or config.llm_covers.default_model)) -- NOTE this makes things slower, but more stable
+  -- os.execute("ollama stop " .. (model or config.llm_covers.default_model)) -- NOTE this makes things slower, but more stable
   local delta = timing.stop()
 
   print("Took " .. delta .. " minutes.")
