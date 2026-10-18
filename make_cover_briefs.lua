@@ -296,6 +296,10 @@ local generate_cover_briefs = function(books)
   for name, data in pairs(books) do
     local function loop()
       if data.cover_brief_file then return end
+      if not (data.extracted_file_size) then
+        print("WARNING:", name, "does not have an extracted_file_size.")
+        return
+      end
       print(name)
 
       local text
